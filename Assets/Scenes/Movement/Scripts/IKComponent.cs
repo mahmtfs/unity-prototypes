@@ -30,8 +30,11 @@ namespace Movement
         private Vector3 _leftFootUp = Vector3.up;
         private Vector3 _rightFootUp = Vector3.up;
         private float _originalColliderYCenter;
-        private float _leftFootDistanceToGround;
-        private float _rightFootDistanceToGround;
+        private float _originalColliderZCenter;
+        private float _originalColliderHeight;
+        private float _leftFootDistanceToGround = 0f;
+        private float _rightFootDistanceToGround = 0f;
+        private float _feetHeightDifference;
         private bool _isIdling = true;
         private bool _isRotating = false;
         private bool _wasIdling = true;
@@ -41,18 +44,20 @@ namespace Movement
             _animator = GetComponent<Animator>();
             _hashGrounded = Animator.StringToHash("Grounded");
             _originalColliderYCenter = _collider.center.y;
+            _originalColliderZCenter = _collider.center.z;
+            _originalColliderHeight = _collider.height;
         }
 
         void Update()
         {
-            if (_playerIKCopy != null)        {
-                float _colliderYDifference = _collider.center.y - _originalColliderYCenter;
-
-                _playerIKCopy.position = new Vector3(transform.position.x, transform.position.y - _colliderYDifference, transform.position.z);
+            if (_playerIKCopy != null)        
+            {
+                _playerIKCopy.position = transform.position;//new Vector3(transform.position.x, transform.position.y - _colliderYDifference, transform.position.z);
                 _playerIKCopy.rotation = transform.rotation;
             }
             _isIdling = _movementComponent.IsIdling();
             _isRotating = _movementComponent.IsRotating();
+            _feetHeightDifference = Mathf.Abs(_leftFootBone.position.y - _rightFootBone.position.y);
         }
 
         void FixedUpdate()
@@ -68,7 +73,7 @@ namespace Movement
 
                 _leftFootRig.weight = 1f;
                 if ((_isIdling && _isRotating) || (_isIdling && !_wasIdling)){
-                    _leftFootDistanceToGround = Mathf.Max(Vector3.Distance(_leftFootBone.position, leftHit.point) - _footOffset, 0f);
+                    _leftFootDistanceToGround = Vector3.Distance(_leftFootBone.position, leftHit.point);
                     _wasIdling = true;
                 }
             }
@@ -78,7 +83,7 @@ namespace Movement
                 if (Physics.Raycast(_leftFootBoneRef.position, Vector3.down, out leftHit, 100f, _groundLayers))
                 {
                     if ((_isIdling && _isRotating) || (_isIdling && !_wasIdling)){
-                        _leftFootDistanceToGround = Mathf.Max(Vector3.Distance(_leftFootBone.position, leftHit.point) - _footOffset, 0f);
+                        _leftFootDistanceToGround = Vector3.Distance(_leftFootBone.position, leftHit.point);
                         _wasIdling = true;
                     }
                 }
@@ -100,7 +105,7 @@ namespace Movement
                 _rightFootRig.weight = 1f;
                 if ((_isIdling && _isRotating) || (_isIdling && !_wasIdling))
                 {
-                    _rightFootDistanceToGround = Mathf.Max(Vector3.Distance(_rightFootBone.position, rightHit.point) - _footOffset, 0f);
+                    _rightFootDistanceToGround = Vector3.Distance(_rightFootBone.position, rightHit.point);
                     _wasIdling = true;
                 } 
             }
@@ -111,7 +116,7 @@ namespace Movement
                 {
                     if ((_isIdling && _isRotating) || (_isIdling && !_wasIdling))
                     {
-                        _rightFootDistanceToGround = Mathf.Max(Vector3.Distance(_rightFootBone.position, rightHit.point) - _footOffset, 0f);
+                        _rightFootDistanceToGround = Vector3.Distance(_rightFootBone.position, rightHit.point);
                         _wasIdling = true;
                     } 
                 }
@@ -124,12 +129,15 @@ namespace Movement
             
             if (_isIdling)
             {
-                float _newYCenter = _originalColliderYCenter + Mathf.Max(_leftFootDistanceToGround, _rightFootDistanceToGround);
-                _collider.center = new Vector3(0f, _newYCenter, 0f);
+                float _greaterFootDistance = Mathf.Max(_leftFootDistanceToGround, _rightFootDistanceToGround);
+                float _newYCenter = _originalColliderYCenter + Mathf.Max(_greaterFootDistance - _footOffset, 0f);
+                _collider.center = new Vector3(0f, _newYCenter, _originalColliderZCenter);
+                _collider.height = _originalColliderHeight - _feetHeightDifference * 1.5f;
             }
             else
             {
-                _collider.center = new Vector3(0f, _originalColliderYCenter, 0f);
+                _collider.center = new Vector3(0f, _originalColliderYCenter, _originalColliderZCenter);
+                _collider.height = _originalColliderHeight;
                 _wasIdling = false;
             }
         }
